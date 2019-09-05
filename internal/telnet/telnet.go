@@ -70,10 +70,12 @@ OUTER:
 	log.Printf("Write routine finished")
 }
 
-func Serve(host string, port string, timeout int) {
+func Run(host string, port string, timeout int) {
 	dialer := &net.Dialer{}
 	ctx := context.Background()
 	var cancel context.CancelFunc
+
+	// Set connection timeout if timeout > 0
 	if timeout > 0 {
 		log.Printf("Connection timeout is set to %d seconds\n", timeout)
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
@@ -81,6 +83,7 @@ func Serve(host string, port string, timeout int) {
 		ctx, cancel = context.WithCancel(ctx)
 	}
 
+	// Try to connect
 	conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(host, port))
 	if err != nil {
 		log.Fatalf("Cannot connect: %v", err)
@@ -88,10 +91,12 @@ func Serve(host string, port string, timeout int) {
 	defer conn.Close()
 
 	wg := sync.WaitGroup{}
-	wg.Add(1)
 
-	// channel that signals write routine when connection closes
+	// Create channel that signals write routine when connection closes
 	closeChan := make(chan bool, 1)
+
+	// start read routine
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		readRoutine(ctx, conn)
@@ -99,13 +104,14 @@ func Serve(host string, port string, timeout int) {
 		close(closeChan)
 	}()
 
+	// start write routine
 	wg.Add(1)
-
 	go func() {
 		defer wg.Done()
 		writeRoutine(ctx, conn, closeChan)
 	}()
 
+	// handle singal
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	go func() {

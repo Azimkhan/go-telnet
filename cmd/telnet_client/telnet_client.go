@@ -23,5 +23,5 @@ func main() {
 			log.Fatal(err)
 		}
 	}
-	telnet.Serve(os.Args[1], os.Args[2], timeout)
+	telnet.Run(os.Args[1], os.Args[2], timeout)
 }
